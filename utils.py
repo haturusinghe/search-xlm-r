@@ -39,8 +39,9 @@ def load_masked_sentences(filepath):
         content = f.read()
         print(content)
         
-        # Process each line from the content
         for line in content.splitlines():
+            # Print the raw representation of the line
+            print(repr(line))
             line = line.strip()
             if not line or '\t' not in line:
                 continue
