@@ -2,6 +2,8 @@ import os
 import numpy as np
 import argparse
 import random
+import h5py
+import torch
 from model import EmbeddingModel
 from utils import load_articles, chunk_text, load_masked_sentences, save_pickle, load_pickle
 from faiss_indexer import FaissIndexer
@@ -91,15 +93,71 @@ def main(args):
             print("-" * 50)
 
     # --- FAISS Index Creation ---
-    # Compute and normalize embeddings for all chunks
-    chunk_embeddings = []
-    for chunk in article_chunks:
-        emb = model.get_embedding(chunk).squeeze().cpu().numpy()
-        norm = np.linalg.norm(emb)
-        chunk_embeddings.append(emb / norm if norm != 0 else emb)
-    chunk_embeddings = np.array(chunk_embeddings)
-    embedding_dim = chunk_embeddings.shape[1]
+    # Compute embeddings with batch processing and save to HDF5
+    if args.h5_embeddings_path and os.path.exists(args.h5_embeddings_path) and not args.force_recompute:
+        print(f"Loading pre-computed embeddings from {args.h5_embeddings_path}")
+        with h5py.File(args.h5_embeddings_path, 'r') as h5f:
+            chunk_embeddings = h5f['embeddings'][:]
+            embedding_dim = chunk_embeddings.shape[1]
+            print(f"Loaded {len(chunk_embeddings)} embeddings with dimension {embedding_dim}")
+    else:
+        # Determine embedding dimension using one sample
+        sample_embedding = model.get_embedding(article_chunks[0]).squeeze().cpu().numpy()
+        embedding_dim = sample_embedding.shape[0]
+        num_chunks = len(article_chunks)
+        print(f"Number of chunks: {num_chunks}, Embedding dimension: {embedding_dim}")
+        
+        # Set up parameters for batch processing
+        batch_size = args.batch_size  # Adjustable batch size
+        
+        # If h5 path is provided, use it to store embeddings
+        if args.h5_embeddings_path:
+            print(f"Computing embeddings in batches and saving to {args.h5_embeddings_path}")
+            with h5py.File(args.h5_embeddings_path, 'w') as h5f:
+                # Create dataset for embeddings
+                dset = h5f.create_dataset("embeddings", shape=(num_chunks, embedding_dim), dtype="float32")
+                
+                # Process chunks in batches
+                for i in range(0, num_chunks, batch_size):
+                    # Get current batch
+                    batch = article_chunks[i:min(i + batch_size, num_chunks)]
+                    
+                    # Process each chunk in batch and get embedding
+                    batch_embeddings = []
+                    for chunk in batch:
+                        emb = model.get_embedding(chunk).squeeze().cpu().numpy()
+                        norm = np.linalg.norm(emb)
+                        batch_embeddings.append(emb / norm if norm != 0 else emb)
+                    
+                    # Store in HDF5
+                    batch_embeddings = np.array(batch_embeddings)
+                    dset[i:i + len(batch)] = batch_embeddings
+                    
+                    # Print progress
+                    if i % (batch_size * 10) == 0 or i + batch_size >= num_chunks:
+                        print(f"Processed {i + len(batch)} / {num_chunks} chunks")
+                
+                print("Embeddings computed and saved to disk at:", args.h5_embeddings_path)
+                
+            # Load the embeddings back for indexing
+            with h5py.File(args.h5_embeddings_path, 'r') as h5f:
+                chunk_embeddings = h5f['embeddings'][:]
+        else:
+            # If no h5 path, compute embeddings in memory (original approach)
+            print("Computing embeddings in memory")
+            chunk_embeddings = []
+            for i, chunk in enumerate(article_chunks):
+                emb = model.get_embedding(chunk).squeeze().cpu().numpy()
+                norm = np.linalg.norm(emb)
+                chunk_embeddings.append(emb / norm if norm != 0 else emb)
+                
+                # Print progress
+                if i % 100 == 0 or i + 1 == num_chunks:
+                    print(f"Processed {i + 1} / {num_chunks} chunks")
+                    
+            chunk_embeddings = np.array(chunk_embeddings)
 
+    # Create and populate FAISS index
     indexer = FaissIndexer(embedding_dim)
     indexer.add_embeddings(chunk_embeddings)
     print(f"Stored {len(chunk_embeddings)} chunk embeddings in FAISS index.")
@@ -131,6 +189,12 @@ if __name__ == '__main__':
     parser.add_argument("--save_map_path", type=str, default=None, help="Path to save chunk-to-article map as pickle file")
     parser.add_argument("--load_chunks_path", type=str, default=None, help="Path to load pre-saved article chunks pickle file")
     parser.add_argument("--load_map_path", type=str, default=None, help="Path to load pre-saved chunk-to-article map pickle file")
+    parser.add_argument("--h5_embeddings_path", type=str, default=None, 
+                        help="Path to save/load embeddings using HDF5 format")
+    parser.add_argument("--batch_size", type=int, default=32, 
+                        help="Batch size for processing embeddings")
+    parser.add_argument("--force_recompute", action="store_true",
+                        help="Force recomputation of embeddings even if H5 file exists")
     
     args = parser.parse_args()
     
