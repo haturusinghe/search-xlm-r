@@ -61,7 +61,7 @@ def main(args):
             parser.error("Either provide article directory or both load_chunks_path and load_map_path")
             
         print("Processing articles to create chunks...")
-        articles = load_articles(args.articles_dir, max_articles=args.max_articles)
+        articles = load_articles(args.articles_dir, max_articles=args.max_articles, lines_as_articles=args.lines_as_articles)
         print(f"Loaded {len(articles)} articles (max limit: {args.max_articles})")
         
         article_chunks = []
@@ -173,6 +173,8 @@ if __name__ == '__main__':
                         help="Force recomputation of embeddings even if H5 file exists")
     parser.add_argument("--max_articles", type=int, default=900000, 
                         help="Maximum number of articles to load (default: 900000)")
+    parser.add_argument("--lines_as_articles", action="store_true",
+                        help="Treat each line in a file as a separate article")
     
     args = parser.parse_args()
     
