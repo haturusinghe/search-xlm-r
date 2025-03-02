@@ -6,12 +6,22 @@ def chunk_text(text, chunk_size=300):
     # Simple wrapping into chunks
     return textwrap.wrap(text, width=chunk_size, break_long_words=False)
 
-def load_articles(directory, file_extension='.txt'):
+def load_articles(directory, file_extension='.txt', show_sample=True, sample_length=200):
     files = [f for f in os.listdir(directory) if f.endswith(file_extension)]
     articles = []
     for f in files:
         with open(os.path.join(directory, f), 'r', encoding='utf-8') as fh:
             articles.append(fh.read())
+    
+    print(f"Loaded {len(files)} {file_extension} files from {directory}")
+    
+    if show_sample and articles:
+        sample_text = articles[0][:sample_length] + ("..." if len(articles[0]) > sample_length else "")
+        print(f"Sample from first article ({os.path.basename(files[0])}):")
+        print("-" * 40)
+        print(sample_text)
+        print("-" * 40)
+    
     return articles
 
 def save_pickle(obj, path):

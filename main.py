@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import argparse
+import random
 from model import EmbeddingModel
 from utils import load_articles, chunk_text, load_masked_sentences
 from faiss_indexer import FaissIndexer
@@ -43,6 +44,20 @@ def main(args):
         for chunk in chunks:
             article_chunks.append(chunk)
             chunk_to_article_map[len(article_chunks) - 1] = idx
+    
+    # Display chunk statistics
+    print(f"Total chunks created: {len(article_chunks)}")
+    if len(article_chunks) > 0:
+        # Display 5 random chunks (or fewer if there are less than 5 chunks)
+        sample_size = min(5, len(article_chunks))
+        sample_indices = random.sample(range(len(article_chunks)), sample_size)
+        print(f"\nShowing {sample_size} random chunk samples:")
+        for i, sample_idx in enumerate(sample_indices):
+            article_idx = chunk_to_article_map[sample_idx]
+            print(f"\nSample {i+1} (from article {article_idx}):")
+            print("-" * 50)
+            print(article_chunks[sample_idx][:150] + "..." if len(article_chunks[sample_idx]) > 150 else article_chunks[sample_idx])
+            print("-" * 50)
 
     # --- FAISS Index Creation ---
     # Compute and normalize embeddings for all chunks
@@ -56,6 +71,7 @@ def main(args):
 
     indexer = FaissIndexer(embedding_dim)
     indexer.add_embeddings(chunk_embeddings)
+    print(f"Stored {len(chunk_embeddings)} chunk embeddings in FAISS index.")
 
     # --- Execute Query if provided ---
     if args.query:
