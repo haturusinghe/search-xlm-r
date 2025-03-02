@@ -25,8 +25,9 @@ def load_pickle(path):
 def load_masked_sentences(filepath):
     """
     Load a file with masked sentences for MLM evaluation.
-    Expected format: Each line contains a sentence with [MASK] or <mask> token and the expected word separated by a tab.
-    Example: "මම <mask> වෙත යනවා\tගෙදර" or "මම [MASK] වෙත යනවා\tගෙදර"
+    Expected format: Each line contains a masked sentence with [MASK] or <mask> token and 
+    the expected word separated by a double pipe (||).
+    Example: "මම <mask> වෙත යනවා||ගෙදර" or "මම [MASK] වෙත යනවා||ගෙදර"
     
     Args:
         filepath: Path to the text file with masked sentences
@@ -37,10 +38,9 @@ def load_masked_sentences(filepath):
     masked_data = []
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
-            print(repr(line))
             line = line.strip()
-            if not line or '\t' not in line:
+            if not line or '||' not in line:
                 continue
-            masked_sent, expected = line.split('\t', 1)
+            masked_sent, expected = line.split('||', 1)
             masked_data.append((masked_sent, expected))
     return masked_data
