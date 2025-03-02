@@ -14,6 +14,7 @@ def load_articles(directory, file_extension='.txt', show_sample=True, sample_len
             articles.append(fh.read())
     
     print(f"Loaded {len(files)} {file_extension} files from {directory}")
+    print(f"Loaded {len(articles)} articles.")
     
     if show_sample and articles:
         sample_text = articles[0][:sample_length] + ("..." if len(articles[0]) > sample_length else "")
