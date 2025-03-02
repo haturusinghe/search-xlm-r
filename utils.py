@@ -36,7 +36,11 @@ def load_masked_sentences(filepath):
     """
     masked_data = []
     with open(filepath, 'r', encoding='utf-8') as f:
-        for line in f:
+        content = f.read()
+        print(content)
+        
+        # Process each line from the content
+        for line in content.splitlines():
             line = line.strip()
             if not line or '\t' not in line:
                 continue
