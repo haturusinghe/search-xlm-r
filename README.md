@@ -1,6 +1,18 @@
-# Search-XLM-R
+# XLM-R Search and Evaluation
 
-A Python project for performing search over article text using transformer-based embeddings and FAISS indexing, combined with token matching and BM25 scoring.
+This project implements multilingual text search and masked language model evaluation using XLM-RoBERTa. It provides various search strategies including embedding similarity, combined lexical and semantic search, and BM25 hybrid search.
+
+## Features
+
+- **Semantic Search**: Find similar text chunks using FAISS and embedding similarity
+- **Combined Search**: Lexical and semantic search with customizable weights
+- **BM25 Hybrid Search**: Combination of dense embeddings and sparse BM25 retrieval
+- **MLM Evaluation**: Evaluate masked language models on any language supported by XLM-R
+
+## Installation
+
+1. Clone this repository
+2. Install requirements:
 
 ## Repository Structure
 
