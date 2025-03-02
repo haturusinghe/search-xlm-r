@@ -131,6 +131,7 @@ def main(args):
                 device=device
             )
 
+    print(embedding_dim)
     # Create and populate FAISS index
     indexer = FaissIndexer(embedding_dim)
     indexer.add_embeddings(chunk_embeddings)
