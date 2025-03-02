@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 import random
 from model import EmbeddingModel
-from utils import load_articles, chunk_text, load_masked_sentences
+from utils import load_articles, chunk_text, load_masked_sentences, save_pickle, load_pickle
 from faiss_indexer import FaissIndexer
 from retrieval import search_similar_articles, combined_search, combined_search_bm25, search
 from evaluation import evaluate_mlm, print_evaluation_results, save_evaluation_results
@@ -35,15 +35,46 @@ def main(args):
         
         return
     
-    # --- Load Articles & Chunking ---
-    articles = load_articles(args.articles_dir)
-    article_chunks = []
-    chunk_to_article_map = {}
-    for idx, article in enumerate(articles):
-        chunks = chunk_text(article, chunk_size=300)
-        for chunk in chunks:
-            article_chunks.append(chunk)
-            chunk_to_article_map[len(article_chunks) - 1] = idx
+    # --- Load Article Chunks and Mapping ---
+    # Check if we should load pre-saved chunks and mapping
+    article_chunks = None
+    chunk_to_article_map = None
+    
+    # Try to load pre-saved chunks if path provided
+    if args.load_chunks_path and os.path.exists(args.load_chunks_path):
+        print(f"Loading pre-saved article chunks from {args.load_chunks_path}")
+        article_chunks = load_pickle(args.load_chunks_path)
+        print(f"Loaded {len(article_chunks)} chunks")
+    
+    # Try to load pre-saved mapping if path provided
+    if args.load_map_path and os.path.exists(args.load_map_path):
+        print(f"Loading pre-saved chunk-to-article map from {args.load_map_path}")
+        chunk_to_article_map = load_pickle(args.load_map_path)
+        print(f"Loaded mapping for {len(chunk_to_article_map)} chunks")
+    
+    # If chunks or mapping not loaded, process articles normally
+    if article_chunks is None or chunk_to_article_map is None:
+        if not args.articles_dir:
+            parser.error("Either provide article directory or both load_chunks_path and load_map_path")
+            
+        print("Processing articles to create chunks...")
+        articles = load_articles(args.articles_dir)
+        article_chunks = []
+        chunk_to_article_map = {}
+        for idx, article in enumerate(articles):
+            chunks = chunk_text(article, chunk_size=300)
+            for chunk in chunks:
+                article_chunks.append(chunk)
+                chunk_to_article_map[len(article_chunks) - 1] = idx
+        
+        # Save chunk data if paths are provided
+        if args.save_chunks_path:
+            print(f"Saving article chunks to {args.save_chunks_path}")
+            save_pickle(article_chunks, args.save_chunks_path)
+        
+        if args.save_map_path:
+            print(f"Saving chunk-to-article map to {args.save_map_path}")
+            save_pickle(chunk_to_article_map, args.save_map_path)
     
     # Display chunk statistics
     print(f"Total chunks created: {len(article_chunks)}")
@@ -96,11 +127,16 @@ if __name__ == '__main__':
     parser.add_argument("--top_k", type=int, default=5, help="Number of top search results or predictions")
     parser.add_argument("--eval_mlm", type=str, default=None, help="Path to file with masked sentences for MLM evaluation")
     parser.add_argument("--output_dir", type=str, default=None, help="Directory to save evaluation results")
+    parser.add_argument("--save_chunks_path", type=str, default=None, help="Path to save article chunks as pickle file")
+    parser.add_argument("--save_map_path", type=str, default=None, help="Path to save chunk-to-article map as pickle file")
+    parser.add_argument("--load_chunks_path", type=str, default=None, help="Path to load pre-saved article chunks pickle file")
+    parser.add_argument("--load_map_path", type=str, default=None, help="Path to load pre-saved chunk-to-article map pickle file")
     
     args = parser.parse_args()
     
-    # Make articles_dir optional if we're only doing MLM evaluation
-    if not args.articles_dir and not args.eval_mlm:
-        parser.error("Either --articles_dir or --eval_mlm must be specified")
+    # Update the articles_dir requirement check
+    if not args.eval_mlm and not args.articles_dir and (not args.load_chunks_path or not args.load_map_path):
+        parser.error("Either --articles_dir or (--load_chunks_path AND --load_map_path) or --eval_mlm must be specified")
         
     main(args)
+
