@@ -52,7 +52,7 @@ def combined_search(query, model, indexer, chunk_to_article_map, article_chunks,
         print(f"  Combined Score:      {comb_score:.4f}")
         print("  Chunk:\n", article_chunks[idx], "\n")
 
-def combined_search_bm25(query, model, indexer, chunk_to_article_map, article_chunks, top_k=10, candidate_multiplier=10, lambda_weight=1.0):
+def combined_search_bm25(query, model, indexer, chunk_to_article_map, article_chunks, top_k=10, candidate_multiplier=1000, lambda_weight=1.0):
     query_embedding = model.get_embedding(query).squeeze().cpu().numpy()
     norm = np.linalg.norm(query_embedding)
     if norm == 0:
@@ -95,7 +95,7 @@ def combined_search_bm25(query, model, indexer, chunk_to_article_map, article_ch
         print(article_chunks[idx])
         print("-" * 50)
 
-def search(query, model, indexer, chunk_to_article_map, article_chunks, top_k=5):
+def search(query, model, indexer, chunk_to_article_map, article_chunks, top_k=10):
     query_embedding = model.get_embedding(query).squeeze().cpu().numpy()
     norm = np.linalg.norm(query_embedding)
     if norm == 0:
