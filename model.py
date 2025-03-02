@@ -1,28 +1,78 @@
 import torch
-from transformers import AutoModel, AutoTokenizer, AutoModelForMaskedLM
+from transformers import AutoTokenizer, AutoModel, AutoModelForMaskedLM
 
 class EmbeddingModel:
     def __init__(self, tokenizer_path, checkpoint_path, device=None):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         self.model = AutoModel.from_pretrained(checkpoint_path)
-        self.model.resize_token_embeddings(len(self.tokenizer))
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device)
-        self.model.eval()
-        
-        # For MLM tasks, initialize a separate model
         self.mlm_model = None
-
-    def get_embedding(self, sentence, pooling="cls"):
-        inputs = self.tokenizer(sentence, return_tensors="pt", padding=True, truncation=True)
-        inputs = {k: v.to(self.device) for k,v in inputs.items()}
+        
+        # Set device if provided, otherwise use CUDA if available
+        if device:
+            self.device = device
+        else:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        self.model.to(self.device)
+        print(f"Model loaded on {self.device}")
+    
+    def to_device(self, device):
+        """Move model to specified device"""
+        if self.device != device:
+            self.device = device
+            self.model.to(device)
+            if self.mlm_model:
+                self.mlm_model.to(device)
+            print(f"Model moved to {device}")
+    
+    def get_embedding(self, text, device=None):
+        """Get embeddings for a single text"""
+        if device is None:
+            device = self.device
+            
+        inputs = self.tokenizer(text, return_tensors='pt', truncation=True, padding=True, max_length=512)
+        inputs = {key: val.to(device) for key, val in inputs.items()}
+        
         with torch.no_grad():
             outputs = self.model(**inputs)
-        if pooling == "cls":
+            # Use CLS token as the sentence embedding
             embedding = outputs.last_hidden_state[:, 0, :]
-        else:
-            embedding = outputs.last_hidden_state.mean(dim=1)
+        
         return embedding
+    
+    def get_batch_embeddings(self, text_list, device=None):
+        """
+        Get embeddings for a batch of texts efficiently
+        
+        Args:
+            text_list: List of texts to encode
+            device: Device to use for computation
+            
+        Returns:
+            Tensor of shape (batch_size, embedding_dim)
+        """
+        if device is None:
+            device = self.device
+            
+        # Tokenize all texts in the batch at once
+        inputs = self.tokenizer(
+            text_list, 
+            return_tensors='pt', 
+            truncation=True,
+            padding=True,
+            max_length=512
+        )
+        
+        # Move inputs to the device
+        inputs = {key: val.to(device) for key, val in inputs.items()}
+        
+        # Get embeddings without gradient calculation
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            # Use CLS token as the sentence embedding for each item in batch
+            embeddings = outputs.last_hidden_state[:, 0, :]
+        
+        return embeddings
     
     def load_mlm_model(self, checkpoint_path=None):
         """

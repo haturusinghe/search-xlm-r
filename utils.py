@@ -1,15 +1,21 @@
 import os
 import textwrap
 import pickle
+from tqdm import tqdm
 
 def chunk_text(text, chunk_size=300):
     # Simple wrapping into chunks
     return textwrap.wrap(text, width=chunk_size, break_long_words=False)
 
-def load_articles(directory, file_extension='.txt', show_sample=True, sample_length=200):
+def load_articles(directory, file_extension='.txt', show_sample=True, sample_length=200, max_articles=None):
     files = [f for f in os.listdir(directory) if f.endswith(file_extension)]
+    
+    # Limit the number of files if max_articles is specified
+    if max_articles is not None and max_articles > 0:
+        files = files[:max_articles]
+    
     articles = []
-    for f in files:
+    for f in tqdm(files, desc="Loading articles", unit="file"):
         with open(os.path.join(directory, f), 'r', encoding='utf-8') as fh:
             articles.append(fh.read())
     
