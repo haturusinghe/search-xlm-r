@@ -21,3 +21,25 @@ def save_pickle(obj, path):
 def load_pickle(path):
     with open(path, "rb") as f:
         return pickle.load(f)
+
+def load_masked_sentences(filepath):
+    """
+    Load a file with masked sentences for MLM evaluation.
+    Expected format: Each line contains a sentence with [MASK] or <mask> token and the expected word separated by a tab.
+    Example: "මම <mask> වෙත යනවා\tගෙදර" or "මම [MASK] වෙත යනවා\tගෙදර"
+    
+    Args:
+        filepath: Path to the text file with masked sentences
+        
+    Returns:
+        List of tuples (masked_sentence, expected_word)
+    """
+    masked_data = []
+    with open(filepath, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line or '\t' not in line:
+                continue
+            masked_sent, expected = line.split('\t', 1)
+            masked_data.append((masked_sent, expected))
+    return masked_data
